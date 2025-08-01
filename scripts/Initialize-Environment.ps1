@@ -60,9 +60,11 @@ if (Test-Path -Path $ConfigPath) {
         $config = Import-PowerShellDataFile -Path $ConfigPath
         Write-Host ""
         Write-Host "Setting up credentials for vCenter: $($config.SourceServerHost)" -ForegroundColor Blue
+        Write-Host "Using vault: $($config.preferredVault)" -ForegroundColor Gray
+        Write-Host "Credential name: $($config.CredentialName)" -ForegroundColor Gray
         
-        # Initialize vCenter credentials
-        $credentialSuccess = Initialize-VCenterCredentials -ServerHost $config.SourceServerHost -CredentialName 'SourceCred'
+        # Initialize vCenter credentials using configuration values
+        $credentialSuccess = Initialize-VCenterCredentials -ServerHost $config.SourceServerHost -CredentialName $config.CredentialName -VaultName $config.preferredVault
         
         if (-not $credentialSuccess) {
             Write-Host "⚠️ Credential setup incomplete - you'll be prompted when connecting to vCenter" -ForegroundColor Yellow

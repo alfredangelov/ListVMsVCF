@@ -114,8 +114,8 @@ try {
                         $config = Import-PowerShellDataFile -Path $ConfigPath
                         
                         # Use the preferred vault (prioritizes existing VCenterVault)
-                        $preferredVault = Get-PreferredVaultName
-                        $credentialStatus = Test-StoredCredential -CredentialName 'SourceCred' -ServerHost $config.SourceServerHost -VaultName $preferredVault
+                        $preferredVault = Get-PreferredVaultName -RequestedVaultName $config.preferredVault
+                        $credentialStatus = Test-StoredCredential -CredentialName $config.CredentialName -ServerHost $config.SourceServerHost -VaultName $preferredVault
                         
                         if ($credentialStatus) {
                             Write-Host "  vCenter Credentials: ✓ Stored and accessible (vault: $preferredVault)" -ForegroundColor Green

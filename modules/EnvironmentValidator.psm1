@@ -305,11 +305,61 @@ function Initialize-CredentialManagement {
     
     # Only create vault if it doesn't exist and no VCenterVault is available
     if (-not $existingVaults -or (-not ($existingVaults | Where-Object { $_.Name -eq $VaultName }) -and -not ($existingVaults | Where-Object { $_.Name -eq 'VCenterVault' }))) {
-        Write-Host "🔧 Creating new secret vault: $VaultName"
+        Write-Host "🔧 Creating new secret vault: $VaultName" -ForegroundColor Cyan
         try {
-            Register-SecretVault -Name $VaultName -ModuleName Microsoft.PowerShell.SecretStore -ErrorAction Stop
-            Write-Host "✅ Secret vault created successfully: $VaultName" -ForegroundColor Green
-            return $true
+            # Check if SecretStore needs to be configured first
+            try {
+                # Try to register the vault
+                Register-SecretVault -Name $VaultName -ModuleName Microsoft.PowerShell.SecretStore -ErrorAction Stop
+                Write-Host "✅ Secret vault created successfully: $VaultName" -ForegroundColor Green
+                
+                # Test vault functionality by attempting to set/get a test secret
+                try {
+                    $testSecretName = "test-connectivity-$(Get-Random)"
+                    Set-Secret -Name $testSecretName -Secret "test-value" -Vault $VaultName -ErrorAction Stop
+                    $retrievedValue = Get-Secret -Name $testSecretName -Vault $VaultName -AsPlainText -ErrorAction Stop
+                    Remove-Secret -Name $testSecretName -Vault $VaultName -ErrorAction SilentlyContinue
+                    
+                    if ($retrievedValue -eq "test-value") {
+                        Write-Host "✅ Vault functionality verified" -ForegroundColor Green
+                        return $true
+                    } else {
+                        Write-Host "⚠️ Vault created but functionality test failed" -ForegroundColor Yellow
+                        return $true  # Still return true as vault exists
+                    }
+                } catch {
+                    Write-Host "⚠️ Vault created but functionality test failed: $($_.Exception.Message)" -ForegroundColor Yellow
+                    Write-Host "💡 You may need to configure the SecretStore vault password when first used" -ForegroundColor Cyan
+                    return $true  # Still return true as vault exists
+                }
+            } catch {
+                # If registration fails, it might be because SecretStore needs initial configuration
+                Write-Host "⚠️ Initial vault registration failed. Attempting SecretStore configuration..." -ForegroundColor Yellow
+                
+                try {
+                    # Try to configure SecretStore with reasonable defaults
+                    $storeConfig = @{
+                        Authentication = 'Password'
+                        PasswordTimeout = 900  # 15 minutes
+                        Interaction = 'Prompt'
+                        Scope = 'CurrentUser'
+                    }
+                    
+                    Write-Host "🔧 Configuring SecretStore with default settings..." -ForegroundColor Cyan
+                    Set-SecretStoreConfiguration @storeConfig -Force -ErrorAction Stop
+                    
+                    # Now try to register the vault again
+                    Register-SecretVault -Name $VaultName -ModuleName Microsoft.PowerShell.SecretStore -ErrorAction Stop
+                    Write-Host "✅ Secret vault created successfully: $VaultName (after configuration)" -ForegroundColor Green
+                    return $true
+                } catch {
+                    Write-Host "❌ Failed to create vault even after configuration: $($_.Exception.Message)" -ForegroundColor Red
+                    Write-Host "💡 Manual steps required:" -ForegroundColor Yellow
+                    Write-Host "   1. Run: Set-SecretStoreConfiguration -Authentication Password -Interaction Prompt" -ForegroundColor Gray
+                    Write-Host "   2. Run: Register-SecretVault -Name '$VaultName' -ModuleName Microsoft.PowerShell.SecretStore" -ForegroundColor Gray
+                    return $false
+                }
+            }
         } catch {
             Write-Host "❌ Failed to create vault: $($_.Exception.Message)" -ForegroundColor Red
             Write-Host "💡 This may require the SecretStore module or additional permissions" -ForegroundColor Yellow
@@ -605,13 +655,17 @@ function Initialize-VCenterCredentials {
     
     # Check for existing credentials
     if (Test-StoredCredential -CredentialName $CredentialName -ServerHost $ServerHost -VaultName $vaultToUse) {
-        Write-Host "✅ vCenter credentials are ready for use" -ForegroundColor Green
+        Write-Host "✅ vCenter credentials are already configured and ready for use" -ForegroundColor Green
+        Write-Host "   Credential: '$CredentialName' in vault '$vaultToUse'" -ForegroundColor Gray
         return $true
     }
     
     # Set up new credentials
     Write-Host ""
     Write-Host "🔧 Setting up vCenter credentials..." -ForegroundColor Blue
+    Write-Host "   Server: $ServerHost" -ForegroundColor Gray
+    Write-Host "   Credential Name: $CredentialName" -ForegroundColor Gray
+    Write-Host "   Vault: $vaultToUse" -ForegroundColor Gray
     $credentialSuccess = Set-VCenterCredential -CredentialName $CredentialName -ServerHost $ServerHost -VaultName $vaultToUse
     
     if ($credentialSuccess) {
