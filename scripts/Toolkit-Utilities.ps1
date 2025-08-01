@@ -100,6 +100,32 @@ try {
                 Write-Host ""
             }
             
+            # Display optional modules if any exist
+            if ($status.OptionalModules -and $status.OptionalModules.Count -gt 0) {
+                Write-Host "Optional Modules:" -ForegroundColor Cyan
+                foreach ($module in $status.OptionalModules.GetEnumerator()) {
+                    $moduleName = $module.Key
+                    $moduleInfo = $module.Value
+                    $statusText = if ($moduleInfo.Available) { 
+                        if ($moduleInfo.UpToDate) { '✓ Available (Up to Date)' } else { '⚠ Available (Update Recommended)' } 
+                    } else { 
+                        'ℹ Not Installed' 
+                    }
+                    $statusColor = if ($moduleInfo.Available) { 
+                        if ($moduleInfo.UpToDate) { 'Green' } else { 'Yellow' } 
+                    } else { 
+                        'Gray' 
+                    }
+                    
+                    Write-Host "  $moduleName" -ForegroundColor White
+                    Write-Host "    Purpose: $($moduleInfo.Description)" -ForegroundColor Gray
+                    Write-Host "    Recommended: $($moduleInfo.Recommended)" -ForegroundColor Gray
+                    Write-Host "    Installed: $($moduleInfo.Installed)" -ForegroundColor Gray
+                    Write-Host "    Status: $statusText" -ForegroundColor $statusColor
+                    Write-Host ""
+                }
+            }
+            
             $overallStatus = $status.PowerShellVersionOK -and $status.AllModulesOK
             Write-Host "Overall Status: $(if ($overallStatus) { '✓ Ready' } else { '✗ Needs Attention' })" -ForegroundColor $(if ($overallStatus) { 'Green' } else { 'Red' })
             

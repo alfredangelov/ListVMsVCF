@@ -28,6 +28,15 @@
 
 - ✅ **Enhanced EnvironmentValidator**: Added credential management functions
 - ✅ **Smart vSphereConnector**: Automatic credential retrieval with fallback prompting
+- ✅ **Optional Module Support**: Framework for optional modules with user prompts
+- ✅ **VCF.PowerCLI Integration**: Optional VMware Cloud Foundation support
+
+#### **VMware Cloud Foundation (VCF) Support**
+
+- ✅ **Native VCF Compatibility**: Works with VCF environments without code changes
+- ✅ **Optional VCF.PowerCLI Module**: Enhanced VCF features available on demand
+- ✅ **VCF Management Domain Support**: Can target vCenter instances within VCF
+- ✅ **Workload Domain VM Discovery**: Retrieves VMs from any VCF workload domain
 - ✅ **Professional ExcelExporter**: Dual-header format with metadata sheets
 
 #### **Improved User Experience**

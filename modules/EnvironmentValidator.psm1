@@ -19,6 +19,15 @@ $Script:RequiredModules = @{
     'ImportExcel' = [version]'7.0.0'  # For Excel export functionality
 }
 
+# Define optional modules for enhanced functionality
+$Script:OptionalModules = @{
+    'VCF.PowerCLI' = @{
+        MinVersion = [version]'1.0.0'
+        Description = 'VMware Cloud Foundation support'
+        Required = $false
+    }
+}
+
 # Define minimum PowerShell version
 $Script:MinimumPowerShellVersion = [version]'5.1'
 
@@ -132,6 +141,106 @@ function Install-RequiredModule {
     }
 }
 
+function Test-OptionalModule {
+    <#
+    .SYNOPSIS
+        Tests if an optional module is installed and offers to install it
+    .PARAMETER ModuleName
+        Name of the module to test
+    .PARAMETER ModuleInfo
+        Module information hashtable containing MinVersion, Description, Required
+    .OUTPUTS
+        [bool] True if module is available or user chooses not to install, False if installation fails
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ModuleName,
+        
+        [Parameter(Mandatory = $true)]
+        [hashtable]$ModuleInfo
+    )
+    
+    try {
+        $installedModule = Get-Module -Name $ModuleName -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
+        
+        if ($null -eq $installedModule) {
+            Write-Host "ℹ Optional module '$ModuleName' is not installed" -ForegroundColor Yellow
+            Write-Host "  Description: $($ModuleInfo.Description)" -ForegroundColor Gray
+            
+            $choice = Read-Host "Would you like to install '$ModuleName'? (y/N)"
+            if ($choice -match '^[Yy]') {
+                return Install-OptionalModule -ModuleName $ModuleName -MinimumVersion $ModuleInfo.MinVersion
+            } else {
+                Write-Host "  Skipping installation of '$ModuleName'" -ForegroundColor Gray
+                return $true  # Not an error, user chose not to install
+            }
+        }
+        
+        if ($installedModule.Version -ge $ModuleInfo.MinVersion) {
+            Write-Host "✓ Optional module '$ModuleName' version $($installedModule.Version) is available" -ForegroundColor Green
+            return $true
+        } else {
+            Write-Host "⚠ Optional module '$ModuleName' version $($installedModule.Version) is below recommended version ($($ModuleInfo.MinVersion))" -ForegroundColor Yellow
+            
+            $choice = Read-Host "Would you like to update '$ModuleName'? (y/N)"
+            if ($choice -match '^[Yy]') {
+                return Install-OptionalModule -ModuleName $ModuleName -MinimumVersion $ModuleInfo.MinVersion
+            } else {
+                Write-Host "  Continuing with current version of '$ModuleName'" -ForegroundColor Gray
+                return $true  # Not an error, user chose not to update
+            }
+        }
+    }
+    catch {
+        Write-Warning "Error checking optional module '$ModuleName': $($_.Exception.Message)"
+        return $true  # Don't fail the entire process for optional modules
+    }
+}
+
+function Install-OptionalModule {
+    <#
+    .SYNOPSIS
+        Installs an optional module with error handling
+    .PARAMETER ModuleName
+        Name of the module to install
+    .PARAMETER MinimumVersion
+        Minimum version to install
+    .OUTPUTS
+        [bool] True if installation succeeded, False otherwise
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ModuleName,
+        
+        [Parameter(Mandatory = $true)]
+        [version]$MinimumVersion
+    )
+    
+    try {
+        Write-Host "Installing optional module '$ModuleName' (minimum version $MinimumVersion)..." -ForegroundColor Yellow
+        
+        # Install module for current user to avoid elevation requirements
+        Install-Module -Name $ModuleName -MinimumVersion $MinimumVersion -Scope CurrentUser -Force -AllowClobber
+        
+        # Verify installation
+        $installedModule = Get-Module -Name $ModuleName -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
+        if ($null -ne $installedModule -and $installedModule.Version -ge $MinimumVersion) {
+            Write-Host "✓ Successfully installed optional module '$ModuleName'" -ForegroundColor Green
+            return $true
+        } else {
+            Write-Warning "✗ Failed to verify installation of optional module '$ModuleName'"
+            return $false
+        }
+    }
+    catch {
+        Write-Warning "Error installing optional module '$ModuleName': $($_.Exception.Message)"
+        Write-Host "  This is an optional module - continuing without it" -ForegroundColor Gray
+        return $false
+    }
+}
+
 function Initialize-Environment {
     <#
     .SYNOPSIS
@@ -175,6 +284,20 @@ function Initialize-Environment {
     
     Write-Host ""
     
+    # Check and offer to install optional modules
+    if ($Script:OptionalModules.Count -gt 0) {
+        Write-Host "Checking optional modules for enhanced functionality..." -ForegroundColor Blue
+        
+        foreach ($module in $Script:OptionalModules.GetEnumerator()) {
+            $moduleName = $module.Key
+            $moduleInfo = $module.Value
+            
+            Test-OptionalModule -ModuleName $moduleName -ModuleInfo $moduleInfo | Out-Null
+        }
+        
+        Write-Host ""
+    }
+    
     if ($allGood) {
         Write-Host "✓ Environment initialization completed successfully!" -ForegroundColor Green
         Write-Host "All required components are available and ready for use." -ForegroundColor Green
@@ -202,6 +325,7 @@ function Get-EnvironmentStatus {
         PowerShellVersion = $PSVersionTable.PSVersion
         PowerShellVersionOK = (Test-PowerShellVersion)
         Modules = @{}
+        OptionalModules = @{}
         AllModulesOK = $true
     }
     
@@ -222,6 +346,21 @@ function Get-EnvironmentStatus {
         
         if (-not $moduleOK) {
             $status.AllModulesOK = $false
+        }
+    }
+    
+    # Check optional modules
+    foreach ($module in $Script:OptionalModules.GetEnumerator()) {
+        $moduleName = $module.Key
+        $moduleInfo = $module.Value
+        $installedModule = Get-Module -Name $moduleName -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
+        
+        $status.OptionalModules[$moduleName] = @{
+            Recommended = $moduleInfo.MinVersion
+            Description = $moduleInfo.Description
+            Installed = if ($null -ne $installedModule) { $installedModule.Version } else { "Not installed" }
+            Available = ($null -ne $installedModule)
+            UpToDate = if ($null -ne $installedModule) { $installedModule.Version -ge $moduleInfo.MinVersion } else { $false }
         }
     }
     

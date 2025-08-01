@@ -20,8 +20,9 @@
     DryRun                = $true
 
     # vSphere Connection Settings
-    SourceServerHost      = 'your-vcenter-server.company.com'  # vCenter FQDN or IP address
-    vCenterVersion        = '7.0'                               # vCenter version (6.7, 7.0, 8.0)
+    # Compatible with both standard vSphere and VMware Cloud Foundation (VCF) environments
+    SourceServerHost      = 'your-vcenter-server.company.com'  # vCenter FQDN or IP (works with VCF vCenter instances)
+    vCenterVersion        = '7.0'                               # vCenter version (6.7, 7.0, 8.0) - VCF versions supported
     
     # Secure Credential Management
     # These settings control how credentials are stored and retrieved

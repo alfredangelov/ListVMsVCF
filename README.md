@@ -32,6 +32,16 @@ The toolkit automatically installs these modules during initialization:
 | **Microsoft.PowerShell.SecretStore** | ≥1.0.0 | Encrypted credential storage backend |
 | **ImportExcel** | ≥7.0.0 | Professional Excel file generation |
 
+## 🔧 Optional Modules
+
+The following modules can be installed for enhanced functionality:
+
+| Module | Min Version | Purpose | Auto-Install |
+|--------|-------------|---------|--------------|
+| **VCF.PowerCLI** | ≥1.0.0 | VMware Cloud Foundation support | Prompted during setup |
+
+**Note**: The toolkit works with both standard vSphere and VCF environments. The VCF.PowerCLI module is only needed for advanced VCF-specific features and is not required for basic VM listing functionality.
+
 ## 🚀 Quick Start Guide
 
 ### 1. **Configuration Setup** (First - Required)
@@ -182,6 +192,28 @@ The toolkit is built with a modular architecture for maintainability and reusabi
   - `Export-VMsToExcelSimple` - Create formatted Excel reports
   - `New-ExcelFileName` - Generate timestamped file names
   - Custom formatting with dual headers and metadata sheets
+
+### 🌐 VCF (VMware Cloud Foundation) Compatibility
+
+The toolkit is **fully compatible** with VMware Cloud Foundation environments:
+
+- **Native Support**: Uses standard VMware PowerCLI cmdlets that work across vSphere and VCF
+- **No Code Changes Required**: Existing scripts work without modification in VCF environments
+- **Enhanced Features**: Optional VCF.PowerCLI module provides additional VCF-specific capabilities
+- **Flexible Deployment**: Can connect to vCenter instances within VCF management domains
+
+**Key Compatibility Features**:
+
+- ✅ **Standard vSphere APIs**: All VM data retrieval uses standard PowerCLI commands
+- ✅ **VCF Management Domain Support**: Can target specific vCenter instances in VCF
+- ✅ **Workload Domain VMs**: Retrieves VMs from any workload domain
+- ✅ **Same Configuration**: Uses identical configuration format for both environments
+
+**To use with VCF**:
+
+1. **Point to VCF vCenter**: Set `SourceServerHost` to your VCF vCenter instance
+2. **Use VCF Credentials**: Store appropriate VCF vCenter credentials
+3. **Optional Enhancement**: Install VCF.PowerCLI module when prompted for additional features
 
 ## 🔒 Advanced Credential Management
 
