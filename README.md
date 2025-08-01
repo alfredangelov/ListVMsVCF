@@ -34,25 +34,44 @@ The toolkit automatically installs these modules during initialization:
 
 ## 🚀 Quick Start Guide
 
-### 1. **Environment Initialization** (First Time Setup)
+### 1. **Configuration Setup** (First - Required)
 
-Run the initialization script to set up everything automatically:
+Copy and customize the configuration template:
+
+```powershell
+# Copy the example configuration
+Copy-Item .\shared\Configuration.example.psd1 .\shared\Configuration.psd1
+
+# Edit the configuration file with your environment details
+notepad .\shared\Configuration.psd1
+```
+
+**Required settings to configure:**
+
+- `SourceServerHost` - Your vCenter server FQDN or IP
+- `dataCenter` - Exact datacenter name as shown in vCenter  
+- `VMFolder` - VM folder path to analyze
+- `preferredVault` and `CredentialName` - Credential storage settings
+
+### 2. **Environment Initialization** (Second - One Time Setup)
+
+Run the initialization script after configuring your settings:
 
 ```powershell
 .\scripts\Initialize-Environment.ps1
 ```
 
-This single command will:
+This command will:
 
 - ✅ Validate PowerShell version
 - ✅ Install missing modules
-- ✅ Create secure credential vault (if needed)
-- ✅ Prompt for and store vCenter credentials
+- ✅ Create secure credential vault using your configured vault name
+- ✅ Prompt for and store vCenter credentials under your configured credential name
 - ✅ Validate the complete setup
 
-### 2. **Configuration**
+### 3. **Configuration Reference**
 
-Edit `shared\Configuration.psd1` to match your environment:
+Example `shared\Configuration.psd1` settings:
 
 ```powershell
 @{
@@ -79,15 +98,13 @@ Edit `shared\Configuration.psd1` to match your environment:
 }
 ```
 
-### 3. **Run VM Listing**
+### 4. **Run VM Listing**
 
 Execute the main script to list VMs and generate Excel output:
 
 ```powershell
 .\scripts\List-VMs.ps1
 ```
-
-Execute the main script to list VMs and generate Excel output:
 
 ```powershell
 .\scripts\List-VMs.ps1
@@ -492,3 +509,4 @@ For issues and questions:
 **Toolkit Version**: 2.0.0  
 **Last Updated**: August 1, 2025  
 **PowerShell Compatibility**: 5.1+ (7.0+ recommended)
+**Author**: Alfred Angelov

@@ -5,7 +5,7 @@
 # 
 # Quick Start:
 # 1. Copy this file: Copy-Item Configuration.example.psd1 Configuration.psd1
-# 2. Edit Configuration.psd1 with your environment details
+# 2. Edit Configuration.psd1 with your environment details (vCenter, datacenter, folder)
 # 3. Run: .\scripts\Initialize-Environment.ps1
 # 4. Run: .\scripts\List-VMs.ps1
 
@@ -135,8 +135,8 @@
 #
 # 6. TESTING WORKFLOW:
 #    a) Copy this file: Copy-Item Configuration.example.psd1 Configuration.psd1
-#    b) Edit Configuration.psd1 with your environment details
-#    c) Initialize: .\scripts\Initialize-Environment.ps1
+#    b) Edit Configuration.psd1 with your environment details (vCenter, datacenter, VM folder)
+#    c) Initialize: .\scripts\Initialize-Environment.ps1 (reads config for vault/credential names)
 #    d) Test connectivity: .\scripts\Toolkit-Utilities.ps1 -Action TestConnection
 #    e) Test with small folder: Set VMFolder = 'Discovered virtual machine'
 #    f) Run with DryRun = $true first to validate
