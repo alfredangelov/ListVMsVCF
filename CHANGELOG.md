@@ -167,4 +167,5 @@
 **Toolkit Version**: 2.0.0  
 **Release Date**: August 1, 2025  
 **PowerShell Compatibility**: 5.1+ (7.0+ recommended)  
+
 **Author**: Alfred Angelov

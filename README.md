@@ -106,10 +106,6 @@ Execute the main script to list VMs and generate Excel output:
 .\scripts\List-VMs.ps1
 ```
 
-```powershell
-.\scripts\List-VMs.ps1
-```
-
 ## 📖 Detailed Usage
 
 ### Script Reference
@@ -509,4 +505,5 @@ For issues and questions:
 **Toolkit Version**: 2.0.0  
 **Last Updated**: August 1, 2025  
 **PowerShell Compatibility**: 5.1+ (7.0+ recommended)
+
 **Author**: Alfred Angelov
