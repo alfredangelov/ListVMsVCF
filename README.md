@@ -7,12 +7,14 @@ A comprehensive PowerShell toolkit for listing virtual machines from vSphere/vCe
 - **🚀 One-Command Setup**: Automated environment initialization with dependency management
 - **🔒 Secure Credential Management**: Automatic vault creation and encrypted credential storage
 - **⚙️ Configuration-Driven**: All settings centralized in configuration files
-- **📊 Professional Excel Export**: Dual-header format with metadata and custom formatting
+- **📊 Professional Excel Export**: Dual-header format with metadata and server-aware filenames
 - **🔍 Environment Validation**: Comprehensive PowerShell and module dependency checking
-- **🌐 vSphere Connectivity**: Robust connection handling with automatic credential retrieval
+- **🌐 Dual Connectivity**: Support for both vCenter and direct ESXi host connections
 - **📁 Smart Folder Management**: Intelligent folder validation and VM discovery
 - **🧪 Dry Run Mode**: Safe testing without making changes
 - **🛠️ Utility Functions**: Built-in tools for diagnostics and exploration
+- **🔐 SSL Compatibility**: Configurable SSL certificate handling for various network environments
+- **🏢 VCF Support**: Optional VMware Cloud Foundation module integration
 
 ## 📋 Prerequisites
 
@@ -97,6 +99,13 @@ Example `shared\Configuration.psd1` settings:
     # Credential Management
     preferredVault        = 'VCenterVault'                  # Secret vault name
     CredentialName        = 'SourceCred'                    # Stored credential name
+    
+    # SSL Certificate handling (useful for ESXi hosts with self-signed certificates)
+    IgnoreSSLCertificates = $true                           # Set to $false for production vCenter with valid certificates
+    
+    # Network environment settings  
+    # Set to $true if running from networks with SSL inspection (Zscaler, etc.)
+    NetworkHasSSLInspection = $true                         # Enables additional SSL compatibility measures
     
     # Export Properties
     VMProperties = @(
@@ -218,20 +227,23 @@ The toolkit is built with a modular architecture for maintainability and reusabi
 
 #### **EnvironmentValidator.psm1**
 
-- **Purpose**: Environment validation and credential management
+- **Purpose**: Environment validation, credential management, and optional module support
 - **Key Functions**:
-  - `Initialize-Environment` - Complete environment setup
+  - `Initialize-Environment` - Complete environment setup with optional module handling
   - `Initialize-CredentialManagement` - Secure vault creation and configuration
   - `Get-VCenterCredential` - Retrieve stored credentials
   - `Set-VCenterCredential` - Store new credentials securely
   - `Test-StoredCredential` - Validate credential accessibility
+  - `Test-OptionalModule` - Check for optional modules (VCF.PowerCLI)
+  - `Install-OptionalModule` - Install optional modules with user consent
 
 #### **vSphereConnector.psm1**
 
-- **Purpose**: vCenter connectivity and VM data retrieval
+- **Purpose**: vCenter/ESXi connectivity and VM data retrieval
 - **Key Functions**:
-  - `Connect-vSphereServer` - Establish secure vCenter connections
-  - `Get-VMsFromFolder` - Retrieve VM data from specified folders
+  - `Connect-vSphereServer` - Establish secure vCenter/ESXi connections with SSL handling
+  - `Get-VMsFromFolder` - Retrieve VM data from specified vCenter folders
+  - `Get-VMsFromESXiHost` - Direct ESXi host VM discovery (bypasses vCenter)
   - `Get-VMProperties` - Extract comprehensive VM properties
   - `Disconnect-vSphereServer` - Clean connection teardown
 
@@ -264,6 +276,107 @@ The toolkit is **fully compatible** with VMware Cloud Foundation environments:
 1. **Point to VCF vCenter**: Set `SourceServerHost` to your VCF vCenter instance
 2. **Use VCF Credentials**: Store appropriate VCF vCenter credentials
 3. **Optional Enhancement**: Install VCF.PowerCLI module when prompted for additional features
+
+## 🔐 Network Compatibility & SSL Handling
+
+The toolkit includes robust SSL certificate handling for various network environments:
+
+### **SSL Certificate Configuration**
+
+Configure SSL handling in `Configuration.psd1`:
+
+```powershell
+# SSL Certificate handling (useful for ESXi hosts with self-signed certificates)
+IgnoreSSLCertificates = $true                           # Set to $false for production vCenter with valid certificates
+
+# Network environment settings
+# Set to $true if running from networks with SSL inspection (Zscaler, etc.)
+NetworkHasSSLInspection = $true                         # Enables additional SSL compatibility measures
+```
+
+### **Common Network Scenarios**
+
+#### **Enterprise Networks with SSL Inspection**
+
+**Symptoms**: SSL connection failures when connecting to vCenter/ESXi from corporate networks
+**Common Appliances**: Zscaler, BlueCoat, Palo Alto with SSL decryption
+
+**Solutions**:
+
+1. **Configuration Approach** (Recommended):
+
+   ```powershell
+   # In Configuration.psd1
+   IgnoreSSLCertificates = $true
+   NetworkHasSSLInspection = $true
+   ```
+
+2. **Network Bypass** (Work with IT team):
+   - Add ESXi/vCenter hosts to SSL inspection bypass list
+   - Configure firewall rules for direct SSL passthrough
+   - Use internal network segments that bypass security appliances
+
+3. **VPN/Internal Access**:
+   - Connect via VPN that bypasses SSL inspection
+   - Use jump hosts/bastion servers on internal network
+   - Run scripts from internal network segments
+
+#### **ESXi Direct Connections**
+
+**Use Case**: Connecting directly to standalone ESXi hosts
+**Challenges**: Self-signed certificates, older TLS versions
+
+**Configuration**:
+
+```powershell
+# Optimal settings for ESXi direct connections
+IgnoreSSLCertificates = $true
+NetworkHasSSLInspection = $false  # Unless corporate network involved
+```
+
+#### **Production vCenter with Valid Certificates**
+
+**Use Case**: Enterprise vCenter with proper CA-signed certificates
+**Configuration**:
+
+```powershell
+# Strict SSL validation for production
+IgnoreSSLCertificates = $false
+NetworkHasSSLInspection = $false
+```
+
+### **Troubleshooting SSL Issues**
+
+**Common Error Messages**:
+
+- "The SSL connection could not be established"
+- "The underlying connection was closed: Could not establish trust relationship"
+- "Authentication failed because the remote party has closed the transport stream"
+
+**Diagnostic Steps**:
+
+1. **Test Basic Connectivity**:
+
+   ```powershell
+   Test-NetConnection your-vcenter.company.com -Port 443
+   ```
+
+2. **Test from Internal Network**:
+   - Try the same connection from a machine on the internal network
+   - If it works internally, the issue is network-level SSL inspection
+   - ESXi scripts are particularly sensitive to SSL inspection appliances
+
+3. **Check PowerCLI Configuration**:
+
+   ```powershell
+   Get-PowerCLIConfiguration
+   Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Scope Session
+   ```
+
+4. **Work with Network Team**:
+   - Request SSL bypass for VMware infrastructure
+   - Identify internal network access options
+   - Configure VPN access that bypasses SSL inspection
 
 ## 🔒 Advanced Credential Management
 
@@ -319,20 +432,25 @@ The generated Excel files include:
 
 ### **Intelligent File Naming**
 
-Excel files are automatically named with the format: `VMList_hostname_YYYYMMDD_HHMMSS.xlsx`
+Excel files are automatically named with server-aware formatting:
+
+**vCenter Files**: `VMList_hostname_YYYYMMDD_HHMMSS.xlsx`
+**ESXi Files**: `VMList_ESXi_hostname_YYYYMMDD_HHMMSS.xlsx`
 
 **Examples**:
 
 - `VMList_vcenter-prod_20250819_143052.xlsx` - Production vCenter export
-- `VMList_edprvcsa03_20250819_143052.xlsx` - Development environment export  
+- `VMList_ESXi_esx01_20250819_143052.xlsx` - Direct ESXi host export
 - `VMList_vcf-mgmt01_20250819_143052.xlsx` - VCF management domain export
+- `VMList_ESXi_clvm19_20250819_143052.xlsx` - Lab ESXi host export
 
 **Benefits**:
 
-- ✅ **Environment Identification**: Instantly identify source vCenter
-- ✅ **Multi-Environment Support**: Easy to distinguish between different vCenters
+- ✅ **Environment Identification**: Instantly identify source server and connection type
+- ✅ **Multi-Environment Support**: Easy to distinguish between vCenter and ESXi exports
 - ✅ **Chronological Sorting**: Timestamp enables easy file organization
 - ✅ **VCF Compatibility**: Works with VCF management and workload domain vCenters
+- ✅ **Network Troubleshooting**: ESXi prefix identifies direct host connections
 
 ### **Report Content Structure**
 

@@ -23,6 +23,8 @@ function Connect-vSphereServer {
         Name of stored credential to use (default: 'SourceCred')
     .PARAMETER VaultName
         Name of secret vault to check (default: 'VCenterVault')
+    .PARAMETER IgnoreSSLCertificates
+        Whether to ignore SSL certificate warnings (useful for ESXi hosts with self-signed certificates)
     .OUTPUTS
         [bool] True if connection succeeded, False otherwise
     #>
@@ -38,7 +40,10 @@ function Connect-vSphereServer {
         [string]$CredentialName = 'SourceCred',
         
         [Parameter(Mandatory = $false)]
-        [string]$VaultName = 'VCenterVault'
+        [string]$VaultName = 'VCenterVault',
+        
+        [Parameter(Mandatory = $false)]
+        [bool]$IgnoreSSLCertificates = $true
     )
     
     try {
@@ -89,6 +94,27 @@ function Connect-vSphereServer {
                 Write-Verbose "Could not access stored credentials: $($_.Exception.Message)"
                 Write-Host "ℹ️ No stored credentials found - will prompt for authentication" -ForegroundColor Yellow
             }
+        }
+        
+        # Configure PowerCLI SSL certificate handling
+        if ($IgnoreSSLCertificates) {
+            Write-Host "Configuring SSL to ignore certificate warnings (ESXi self-signed certificates)..." -ForegroundColor Gray
+            try {
+                # Set to ignore invalid certificates (common for ESXi hosts with self-signed certs)
+                Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Scope Session -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+                
+                # Configure .NET security protocols to support older TLS versions (ESXi compatibility)
+                [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls11 -bor [System.Net.SecurityProtocolType]::Tls
+                
+                # Configure certificate validation callback to accept all certificates
+                [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+                
+                Write-Verbose "SSL/TLS configuration updated for ESXi compatibility"
+            } catch {
+                Write-Verbose "Could not configure certificate policy: $($_.Exception.Message)"
+            }
+        } else {
+            Write-Host "Using strict SSL certificate validation..." -ForegroundColor Gray
         }
         
         # Connect to vSphere

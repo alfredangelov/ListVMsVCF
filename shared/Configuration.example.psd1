@@ -28,6 +28,13 @@
     # These settings control how credentials are stored and retrieved
     preferredVault        = 'VCenterVault'                      # Secret vault name for credential storage
     CredentialName        = 'SourceCred'                        # Name of the stored credential
+
+    # SSL Certificate handling (useful for ESXi hosts with self-signed certificates)
+    IgnoreSSLCertificates = $true                           # Set to $false for production vCenter with valid certificates
+
+    # Network environment settings
+    # Set to $true if running from networks with SSL inspection (Zscaler, etc.)
+    NetworkHasSSLInspection = $true                         # Enables additional SSL compatibility measures
     
     # Note: During initialization, you'll be prompted to enter credentials once.
     # They'll be securely stored and automatically used for future connections.

@@ -158,7 +158,7 @@ try {
     Write-Host "═══════════════════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
     Write-Host "Connecting to ESXi host..." -ForegroundColor Blue
 
-    if (-not (Connect-vSphereServer -ServerHost $config.SourceServerHost -CredentialName $config.CredentialName -VaultName $config.preferredVault)) {
+    if (-not (Connect-vSphereServer -ServerHost $config.SourceServerHost -CredentialName $config.CredentialName -VaultName $config.preferredVault -IgnoreSSLCertificates $config.IgnoreSSLCertificates)) {
         throw "Failed to connect to ESXi host: $($config.SourceServerHost)"
     }
 
