@@ -1,35 +1,23 @@
-# Configuration files
+# Active configuration (contains environment-specific values)
 shared/Configuration.psd1
 
-# Generated reports and output files
-*.html
-*-Report.html
-*-report.html
-Permissions-Report*
-Enhanced-Report*
-*-summary.json
-*-tooltip-summary.json
-HOWTO-*.ps1
-FullOutput-*.txt
-*-OPTIMIZATION.md
-test/*
-output/*
-exclude-permissions.txt
+# Project internal documentation
+docs/*
 
 # Test files and temporary directories
 Test-*.ps1
-/tmp/
-*-test/
-*-test.*
-test-*
+test/*
 
 # Logs and debug files
+logs/*
 *.log
 *.txt
 debug-*
 error-*
 
 # Data export files
+export/*
+output/*
 *.csv
 *.xlsx
 *.xml
@@ -41,29 +29,19 @@ error-*
 *.p12
 *.crt
 *.pem
-*credential*
 *secret*
 *password*
 
-# PowerShell specific
-*.ps1xml
-profile.ps1
-
-# Backup files
-*.bak
-*.backup
-*~
-
-# OS specific files
+# Ignore cruft
 Thumbs.db
 .DS_Store
 desktop.ini
-
-# IDE/Editor files
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# Refactoring documentation
-REFACTORING*.md
+*.ps1xml
+profile.ps1
+*.bak
+*.backup
+*~
