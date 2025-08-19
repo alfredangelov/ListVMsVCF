@@ -340,11 +340,69 @@ function Test-vSphereConnection {
     }
 }
 
+function Get-VMsFromESXiHost {
+    <#
+    .SYNOPSIS
+        Retrieves all VMs directly from an ESXi host
+    .DESCRIPTION
+        Connects directly to an ESXi host and retrieves all VMs with specified properties.
+        This function is designed for direct ESXi host connections without vCenter.
+    .PARAMETER Properties
+        Array of VM properties to retrieve
+    .OUTPUTS
+        [array] Array of VM objects with requested properties
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Properties
+    )
+    
+    try {
+        Write-Host "Retrieving VMs from ESXi host..." -ForegroundColor Blue
+        
+        # Get all VMs directly from the ESXi host
+        $vms = Get-VM -ErrorAction Stop
+        
+        if (-not $vms) {
+            Write-Warning "No VMs found on ESXi host"
+            return @()
+        }
+        
+        Write-Host "Found $($vms.Count) VM(s) on ESXi host" -ForegroundColor Green
+        Write-Host ""
+        
+        # Process VMs and extract properties
+        $vmDataList = @()
+        $counter = 0
+        
+        foreach ($vm in $vms) {
+            $counter++
+            $progressPercent = [math]::Round(($counter / $vms.Count) * 100, 0)
+            Write-Progress -Activity "Processing VMs" -Status "Processing VM $counter of $($vms.Count): $($vm.Name)" -PercentComplete $progressPercent
+            
+            # Get VM properties
+            $vmInfo = Get-VMProperties -VM $vm -Properties $Properties
+            $vmDataList += $vmInfo
+        }
+        
+        Write-Progress -Activity "Processing VMs" -Completed
+        Write-Host "✓ Successfully processed $($vmDataList.Count) VMs" -ForegroundColor Green
+        
+        return $vmDataList
+    }
+    catch {
+        Write-Error "Error retrieving VMs from ESXi host: $($_.Exception.Message)"
+        throw
+    }
+}
+
 # Export functions
 Export-ModuleMember -Function @(
     'Connect-vSphereServer',
     'Disconnect-vSphereServer',
     'Get-VMsFromFolder',
+    'Get-VMsFromESXiHost',
     'Get-VMProperties',
     'Test-vSphereConnection'
 )

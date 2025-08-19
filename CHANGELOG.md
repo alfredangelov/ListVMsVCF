@@ -45,6 +45,26 @@
 - ✅ **Enhanced Error Messages**: Detailed troubleshooting guidance
 - ✅ **Comprehensive Documentation**: Updated README with examples and guides
 - ✅ **Configuration Templates**: Detailed example configuration with inline help
+- ✅ **Intelligent File Naming**: Excel files include server hostname in filename
+
+#### **Enhanced Excel Export**
+
+- ✅ **Server-Aware Filenames**: Format `VMList_hostname_YYYYMMDD_HHMMSS.xlsx`
+- ✅ **Multi-Environment Support**: Easy identification of source vCenter environment
+- ✅ **VCF-Compatible Naming**: Works with VCF management and workload domain servers
+
+#### **ESXi Direct Connection Support**
+
+- ✅ **ESXi Host VM Listing**: New `List-VMs-esxi.ps1` for direct ESXi host connections
+- ✅ **Standalone ESXi Support**: Works with ESXi hosts not managed by vCenter
+- ✅ **Same Configuration Format**: Uses identical config file structure as vCenter version
+- ✅ **ESXi-Specific Filename Format**: `VMList_ESXi_hostname_YYYYMMDD_HHMMSS.xlsx`
+- ✅ **Unified Credential Management**: Same vault and credential system for both scripts
+
+#### **Utility Script Enhancements**
+
+- ✅ **Quick Credential Updates**: New `Quick-CredentialUpdate.ps1` for fast credential changes
+- ✅ **Simplified Workflow**: Minimal prompts for quick credential rotation
 
 ### 🔧 Technical Improvements
 

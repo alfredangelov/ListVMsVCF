@@ -1,10 +1,10 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 
 <#
 .SYNOPSIS
-    List VMs from vSphere and export to Excel
+    List VMs from ESXi host and export to Excel
 .DESCRIPTION
-    This script connects to vSphere, retrieves VMs from a specified folder, and exports the data to Excel
+    This script connects directly to an ESXi host, retrieves all VMs, and exports the data to Excel
 .AUTHOR
     VM Listing Toolkit
 .VERSION
@@ -23,13 +23,13 @@
 param(
     [Parameter(Mandatory = $false)]
     [string]$ConfigPath,
-    
+
     [Parameter(Mandatory = $false)]
     [string]$OutputPath,
-    
+
     [Parameter(Mandatory = $false)]
     [switch]$DryRun,
-    
+
     [Parameter(Mandatory = $false)]
     [switch]$Force
 )
@@ -49,119 +49,136 @@ if (-not $OutputPath) {
 # Function to import modules safely
 function Import-ToolkitModule {
     param([string]$ModuleName)
-    
-    $modulePath = Join-Path -Path $ModulePath -ChildPath "$ModuleName.psm1"
-    if (-not (Test-Path -Path $modulePath)) {
-        throw "Cannot find module '$ModuleName' at: $modulePath"
+
+    $ModuleFile = Join-Path -Path $ModulePath -ChildPath "$ModuleName.psm1"
+    if (-not (Test-Path -Path $ModuleFile)) {
+        throw "Cannot find module file: $ModuleFile"
     }
-    
-    Import-Module -Name $modulePath -Force
-    Write-Verbose "Imported module: $ModuleName"
+
+    try {
+        Import-Module -Name $ModuleFile -Force -Global
+        return $true
+    }
+    catch {
+        Write-Error "Failed to import module '$ModuleName': $($_.Exception.Message)"
+        return $false
+    }
 }
 
 # Display banner
 Write-Host @"
 ╔════════════════════════════════════════════════════════════════════════════════╗
 ║                           VM Listing Toolkit                                  ║
-║                            List VMs Script                                    ║
+║                        ESXi Host VM Listing Script                            ║
 ╚════════════════════════════════════════════════════════════════════════════════╝
 "@ -ForegroundColor Cyan
 
 Write-Host ""
 
 try {
-    # Import required modules
+    # Load toolkit modules
     Write-Host "Loading toolkit modules..." -ForegroundColor Blue
-    Import-ToolkitModule -ModuleName "EnvironmentValidator"
-    Import-ToolkitModule -ModuleName "vSphereConnector" 
-    Import-ToolkitModule -ModuleName "ExcelExporter"
+    $moduleLoadResults = @{
+        EnvironmentValidator = Import-ToolkitModule -ModuleName "EnvironmentValidator"
+        vSphereConnector = Import-ToolkitModule -ModuleName "vSphereConnector"
+        ExcelExporter = Import-ToolkitModule -ModuleName "ExcelExporter"
+    }
+
+    $failedModules = $moduleLoadResults.GetEnumerator() | Where-Object { -not $_.Value } | Select-Object -ExpandProperty Key
+    if ($failedModules.Count -gt 0) {
+        throw "Failed to load required modules: $($failedModules -join ', ')"
+    }
+
     Write-Host "✓ All modules loaded successfully" -ForegroundColor Green
     Write-Host ""
-    
-    # Validate environment unless forced to skip
+
+    # Validate environment (unless forced to skip)
     if (-not $Force) {
         Write-Host "Validating environment..." -ForegroundColor Blue
         $envStatus = Get-EnvironmentStatus
-        
-        if (-not ($envStatus.PowerShellVersionOK -and $envStatus.AllModulesOK)) {
-            Write-Host "❌ Environment validation failed!" -ForegroundColor Red
-            Write-Host "Please run .\scripts\Initialize-Environment.ps1 first, or use -Force to skip validation" -ForegroundColor Yellow
-            exit 1
+
+        if (-not $envStatus.PowerShellVersionOK) {
+            throw "PowerShell version $($envStatus.PowerShellVersion) is below minimum requirement"
         }
+
+        if (-not $envStatus.AllModulesOK) {
+            $missingModules = $envStatus.Modules.GetEnumerator() | Where-Object { -not $_.Value.OK } | Select-Object -ExpandProperty Key
+            throw "Required modules missing or outdated: $($missingModules -join ', ')"
+        }
+
         Write-Host "✓ Environment validation passed" -ForegroundColor Green
         Write-Host ""
-    } else {
-        Write-Host "⚠ Skipping environment validation (Force mode)" -ForegroundColor Yellow
-        Write-Host ""
     }
-    
+
     # Load configuration
     Write-Host "Loading configuration..." -ForegroundColor Blue
     if (-not (Test-Path -Path $ConfigPath)) {
         throw "Configuration file not found: $ConfigPath"
     }
-    
-    $config = Import-PowerShellDataFile -Path $ConfigPath
-    Write-Host "✓ Configuration loaded from: $ConfigPath" -ForegroundColor Green
-    
-    # Override DryRun if specified
+
+    try {
+        $config = Import-PowerShellDataFile -Path $ConfigPath
+    }
+    catch {
+        throw "Failed to load configuration file: $($_.Exception.Message)"
+    }
+
+    # Override DryRun if specified in parameters
     if ($DryRun) {
         $config.DryRun = $true
-        Write-Host "ℹ DryRun mode enabled via parameter" -ForegroundColor Yellow
     }
-    
-    # Display configuration summary
+
+    Write-Host "✓ Configuration loaded from: $ConfigPath" -ForegroundColor Green
     Write-Host ""
+
     Write-Host "Configuration Summary:" -ForegroundColor Cyan
-    Write-Host "  vCenter Server: $($config.SourceServerHost)" -ForegroundColor White
-    Write-Host "  Datacenter: $($config.dataCenter)" -ForegroundColor White
-    Write-Host "  VM Folder: $($config.VMFolder)" -ForegroundColor White
+    Write-Host "  ESXi Host: $($config.SourceServerHost)" -ForegroundColor White
     Write-Host "  DryRun Mode: $($config.DryRun)" -ForegroundColor White
     Write-Host "  Properties to Export: $($config.VMProperties.Count)" -ForegroundColor White
     Write-Host ""
-    
+
     # Create output directory if it doesn't exist
     if (-not (Test-Path -Path $OutputPath)) {
         New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
         Write-Host "✓ Created output directory: $OutputPath" -ForegroundColor Green
     }
-    
-    # Generate Excel filename with server hostname
+
+    # Generate Excel filename with server hostname for ESXi
     # Extract hostname from FQDN and clean it for filename use
     $serverHostname = $config.SourceServerHost -split '\.' | Select-Object -First 1
     # Remove any characters that aren't safe for filenames
     $cleanHostname = $serverHostname -replace '[^\w\-]', '-'
-    $filePrefix = "VMList_$cleanHostname"
-    
+    $filePrefix = "VMList_ESXi_$cleanHostname"
+
     $excelFilePath = New-ExcelFileName -BasePath $OutputPath -Prefix $filePrefix
     Write-Host "Excel file will be saved as: $excelFilePath" -ForegroundColor Gray
     Write-Host ""
-    
-    # Connect to vSphere
+
+    # Connect to ESXi host
     Write-Host "═══════════════════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-    Write-Host "Connecting to vSphere..." -ForegroundColor Blue
-    
+    Write-Host "Connecting to ESXi host..." -ForegroundColor Blue
+
     if (-not (Connect-vSphereServer -ServerHost $config.SourceServerHost -CredentialName $config.CredentialName -VaultName $config.preferredVault)) {
-        throw "Failed to connect to vSphere server: $($config.SourceServerHost)"
+        throw "Failed to connect to ESXi host: $($config.SourceServerHost)"
     }
-    
+
     Write-Host ""
-    
-    # Get VMs from folder
+
+    # Get VMs directly from ESXi host
     Write-Host "═══════════════════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-    $vmData = Get-VMsFromFolder -DataCenter $config.dataCenter -VMFolder $config.VMFolder -Properties $config.VMProperties
-    
+    $vmData = Get-VMsFromESXiHost -Properties $config.VMProperties
+
     if ($vmData.Count -eq 0) {
-        Write-Warning "No VMs found in the specified folder. Nothing to export."
+        Write-Warning "No VMs found on the ESXi host. Nothing to export."
         Disconnect-vSphereServer
         exit 0
     }
-    
+
     Write-Host ""
-    
+
     # Export to Excel
     Write-Host "═══════════════════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-    
+
     if ($config.DryRun) {
         Write-Host "🔍 DRY RUN MODE - No files will be created" -ForegroundColor Yellow
         Write-Host ""
@@ -173,59 +190,61 @@ try {
         Write-Host "Excel file would be saved as: $excelFilePath" -ForegroundColor Yellow
         Write-Host ""
         Write-Host "Sample VM data (first 3 VMs):" -ForegroundColor Yellow
-        
+
         $sampleVMs = $vmData | Select-Object -First 3
         foreach ($vm in $sampleVMs) {
             Write-Host "  VM: $($vm.Name)" -ForegroundColor White
             foreach ($property in $config.VMProperties) {
-                $value = if ($vm.ContainsKey($property)) { $vm[$property] } else { "NULL" }
-                if ($value.ToString().Length -gt 50) {
-                    $value = $value.ToString().Substring(0, 47) + "..."
-                }
-                Write-Host "    $property`: $value" -ForegroundColor Gray
+                $value = if ($null -ne $vm.$property) { $vm.$property } else { "NULL" }
+                Write-Host "    ${property}: $value" -ForegroundColor Gray
             }
-            Write-Host ""
         }
     } else {
-        $exportSuccess = Export-VMsToExcelSimple -VMData $vmData -FilePath $excelFilePath -SourceServerHost $config.SourceServerHost -DataCenter $config.dataCenter -VMFolder $config.VMFolder -Properties $config.VMProperties
-        
+        Write-Host "📊 Exporting $($vmData.Count) VMs to Excel..." -ForegroundColor Blue
+
+        # Export using simplified Excel export for ESXi (no datacenter/folder context)
+        $exportSuccess = Export-VMsToExcelSimple -VMData $vmData -FilePath $excelFilePath -SourceServerHost $config.SourceServerHost -DataCenter "ESXi Host" -VMFolder "All VMs" -Properties $config.VMProperties
+
         if ($exportSuccess) {
+            Write-Host "✓ Successfully exported VM data to: $excelFilePath" -ForegroundColor Green
             Write-Host ""
-            Write-Host "📊 Export Summary:" -ForegroundColor Cyan
-            Write-Host "  Total VMs processed: $($vmData.Count)" -ForegroundColor White
-            Write-Host "  Excel file location: $excelFilePath" -ForegroundColor White
-            Write-Host "  File size: $([math]::Round((Get-Item $excelFilePath).Length / 1KB, 2)) KB" -ForegroundColor White
+            Write-Host "Export Summary:" -ForegroundColor Cyan
+            Write-Host "  VMs Exported: $($vmData.Count)" -ForegroundColor White
+            Write-Host "  Properties: $($config.VMProperties.Count)" -ForegroundColor White
+            Write-Host "  File: $excelFilePath" -ForegroundColor White
         } else {
             throw "Failed to export VM data to Excel"
         }
     }
-    
+
     Write-Host ""
-    
-    # Disconnect from vSphere
+
+    # Disconnect from ESXi host
     Write-Host "═══════════════════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+    Write-Host "Disconnecting from ESXi host..." -ForegroundColor Blue
     Disconnect-vSphereServer
-    
+    Write-Host "✓ Disconnected from ESXi host" -ForegroundColor Green
+
     Write-Host ""
-    Write-Host "🎉 VM listing completed successfully!" -ForegroundColor Green
-    
-    if (-not $config.DryRun) {
-        Write-Host ""
-        Write-Host "To open the Excel file:" -ForegroundColor White
-        Write-Host "  Invoke-Item '$excelFilePath'" -ForegroundColor Cyan
-    }
-    
-} catch {
+    Write-Host "🎉 ESXi VM listing completed successfully!" -ForegroundColor Green
+
+    return $true
+}
+catch {
     Write-Host ""
-    Write-Host "❌ Error occurred during VM listing:" -ForegroundColor Red
+    Write-Host "❌ Error occurred during ESXi VM listing:" -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
-    
-    # Ensure we disconnect from vSphere even if an error occurs
-    if (Test-vSphereConnection) {
-        Write-Host ""
-        Write-Host "Cleaning up vSphere connection..." -ForegroundColor Yellow
+    Write-Host ""
+
+    # Ensure we disconnect from any servers
+    try {
         Disconnect-vSphereServer
     }
-    
+    catch {
+        # Ignore disconnection errors during cleanup
+        Write-Verbose "Disconnection cleanup error (ignored): $($_.Exception.Message)"
+    }
+
     exit 1
 }
+

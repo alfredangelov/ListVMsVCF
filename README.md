@@ -123,10 +123,37 @@ Execute the main script to list VMs and generate Excel output:
 | Script | Purpose | Usage |
 |--------|---------|-------|
 | **`Initialize-Environment.ps1`** | Complete environment setup and credential management | Run once for initial setup |
-| **`List-VMs.ps1`** | Main VM listing and Excel export functionality | Primary script for VM data collection |
+| **`List-VMs.ps1`** | Main VM listing and Excel export functionality | Primary script for VM data collection from vCenter |
+| **`List-VMs-esxi.ps1`** | ESXi host VM listing and Excel export | Direct ESXi host VM data collection |
 | **`Toolkit-Utilities.ps1`** | Diagnostic and utility functions | Testing, status checks, and exploration |
+| **`Quick-CredentialUpdate.ps1`** | Quick credential update utility | Fast credential updates without full setup |
 
 ### Advanced Script Usage
+
+#### **🏢 vCenter vs ESXi Usage**
+
+**When to use `List-VMs.ps1` (vCenter):**
+
+- ✅ **Large Environments**: Multiple ESXi hosts managed by vCenter
+- ✅ **Folder Organization**: VMs organized in specific folders
+- ✅ **Datacenter Context**: Need datacenter-specific VM listing
+- ✅ **VCF Environments**: VMware Cloud Foundation deployments
+- ✅ **Enterprise Management**: Centralized VM management scenarios
+
+**When to use `List-VMs-esxi.ps1` (Direct ESXi):**
+
+- ✅ **Standalone ESXi**: Single ESXi hosts not managed by vCenter
+- ✅ **Lab Environments**: Development or testing ESXi hosts
+- ✅ **Direct Host Access**: When vCenter is unavailable
+- ✅ **Simple Inventories**: All VMs on a single host
+- ✅ **Troubleshooting**: Bypassing vCenter for direct host assessment
+
+**Configuration Notes:**
+
+- Both scripts use the same `Configuration.psd1` file
+- Set `SourceServerHost` to vCenter FQDN for `List-VMs.ps1`
+- Set `SourceServerHost` to ESXi host FQDN for `List-VMs-esxi.ps1`
+- Credentials stored in the same vault work for both scenarios
 
 #### List-VMs.ps1 Examples
 
@@ -142,6 +169,29 @@ Execute the main script to list VMs and generate Excel output:
 
 # Use different configuration file
 .\scripts\List-VMs.ps1 -ConfigPath ".\configs\production.psd1"
+```
+
+#### List-VMs-esxi.ps1 Examples
+
+```powershell
+# Basic ESXi execution (uses Configuration.psd1 for ESXi host)
+.\scripts\List-VMs-esxi.ps1
+
+# Dry run mode for ESXi (shows sample data without creating Excel file)
+.\scripts\List-VMs-esxi.ps1 -DryRun
+
+# Custom output directory for ESXi reports
+.\scripts\List-VMs-esxi.ps1 -OutputPath "C:\Reports\ESXiReports"
+
+# Use different configuration file for specific ESXi host
+.\scripts\List-VMs-esxi.ps1 -ConfigPath ".\configs\esxi-prod.psd1"
+```
+
+#### Quick-CredentialUpdate.ps1 Examples
+
+```powershell
+# Quick credential update (uses Configuration.psd1 for server info)
+.\Quick-CredentialUpdate.ps1
 ```
 
 #### Toolkit-Utilities.ps1 Actions
@@ -267,6 +317,25 @@ Set-VCenterCredential -CredentialName "SourceCred" -ServerHost "vcenter.company.
 
 The generated Excel files include:
 
+### **Intelligent File Naming**
+
+Excel files are automatically named with the format: `VMList_hostname_YYYYMMDD_HHMMSS.xlsx`
+
+**Examples**:
+
+- `VMList_vcenter-prod_20250819_143052.xlsx` - Production vCenter export
+- `VMList_edprvcsa03_20250819_143052.xlsx` - Development environment export  
+- `VMList_vcf-mgmt01_20250819_143052.xlsx` - VCF management domain export
+
+**Benefits**:
+
+- ✅ **Environment Identification**: Instantly identify source vCenter
+- ✅ **Multi-Environment Support**: Easy to distinguish between different vCenters
+- ✅ **Chronological Sorting**: Timestamp enables easy file organization
+- ✅ **VCF Compatibility**: Works with VCF management and workload domain vCenters
+
+### **Report Content Structure**
+
 1. **Dual Header System**:
    - **Row 1**: Combined header with vCenter server, datacenter, and folder information
    - **Row 2**: Column names for each VM property
@@ -301,19 +370,21 @@ The generated Excel files include:
 ListVMsVCF/
 ├── scripts/
 │   ├── Initialize-Environment.ps1      # Complete environment setup
-│   ├── List-VMs.ps1                   # Main VM listing script
+│   ├── List-VMs.ps1                   # Main VM listing script (vCenter)
+│   ├── List-VMs-esxi.ps1              # ESXi host VM listing script
 │   └── Toolkit-Utilities.ps1          # Diagnostic and utility functions
 ├── modules/
 │   ├── EnvironmentValidator.psm1       # Environment validation and credentials
-│   ├── vSphereConnector.psm1          # vCenter connectivity and VM data
+│   ├── vSphereConnector.psm1          # vCenter/ESXi connectivity and VM data
 │   └── ExcelExporter.psm1             # Excel file generation and formatting
 ├── shared/
 │   ├── Configuration.psd1             # Main configuration file
 │   └── Configuration.example.psd1     # Example configuration template
 ├── output/
-│   └── (Generated Excel files)        # VMList_YYYYMMDD_HHMMSS.xlsx
+│   └── (Generated Excel files)        # VMList_hostname_YYYYMMDD_HHMMSS.xlsx
 ├── test/
 │   └── (Test scripts and validation)  # Future test framework
+├── Quick-CredentialUpdate.ps1         # Quick credential update utility
 └── README.md                          # This documentation
 ```
 
@@ -535,7 +606,7 @@ For issues and questions:
 5. **Test Components**: Use individual utility functions to isolate issues
 
 **Toolkit Version**: 2.0.0  
-**Last Updated**: August 1, 2025  
+**Last Updated**: August 19, 2025  
 **PowerShell Compatibility**: 5.1+ (7.0+ recommended)
 
 **Author**: Alfred Angelov
