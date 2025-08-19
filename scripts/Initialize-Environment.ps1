@@ -59,15 +59,23 @@ if (Test-Path -Path $ConfigPath) {
     try {
         $config = Import-PowerShellDataFile -Path $ConfigPath
         Write-Host ""
-        Write-Host "Setting up credentials for vCenter: $($config.SourceServerHost)" -ForegroundColor Blue
-        Write-Host "Using vault: $($config.preferredVault)" -ForegroundColor Gray
-        Write-Host "Credential name: $($config.CredentialName)" -ForegroundColor Gray
-        
-        # Initialize vCenter credentials using configuration values
-        $credentialSuccess = Initialize-VCenterCredentials -ServerHost $config.SourceServerHost -CredentialName $config.CredentialName -VaultName $config.preferredVault
-        
-        if (-not $credentialSuccess) {
-            Write-Host "⚠️ Credential setup incomplete - you'll be prompted when connecting to vCenter" -ForegroundColor Yellow
+        Write-Host "Credential configuration" -ForegroundColor Blue
+        Write-Host "  Server: $($config.SourceServerHost)" -ForegroundColor Gray
+        Write-Host "  Requested vault: $($config.preferredVault)" -ForegroundColor Gray
+        Write-Host "  Credential name: $($config.CredentialName)" -ForegroundColor Gray
+
+        # Determine preferred vault and check for existing credential; seed only if missing
+        $preferredVault = Get-PreferredVaultName -RequestedVaultName $config.preferredVault
+        $hasCred = Test-StoredCredential -CredentialName $config.CredentialName -ServerHost $config.SourceServerHost -VaultName $preferredVault
+
+        if ($hasCred) {
+            Write-Host "✅ Credential already present in vault '$preferredVault' — skipping setup" -ForegroundColor Green
+        } else {
+            Write-Host "🔧 Credential not found — initializing vault and storing credentials" -ForegroundColor Yellow
+            $credentialSuccess = Initialize-VCenterCredentials -ServerHost $config.SourceServerHost -CredentialName $config.CredentialName -VaultName $preferredVault
+            if (-not $credentialSuccess) {
+                Write-Host "⚠️ Credential setup incomplete - you'll be prompted when connecting to vCenter" -ForegroundColor Yellow
+            }
         }
     } catch {
         Write-Host "⚠️ Could not load configuration for credential setup: $($_.Exception.Message)" -ForegroundColor Yellow

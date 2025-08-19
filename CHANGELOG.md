@@ -1,5 +1,14 @@
 # VM Listing Toolkit - Changelog
 
+## Version 2.1.1 - August 19, 2025
+
+### 🔒 Credential Management Enhancements
+
+- ✅ Moved `Quick-CredentialUpdate.ps1` into `scripts/` and enhanced it to ensure the configured vault exists before storing credentials
+- ✅ Added `SetupCredentials` action to `scripts/Toolkit-Utilities.ps1` to create the vault (if needed) and (re)store credentials using `Configuration.psd1`
+- ✅ Updated `Initialize-Environment.ps1` to be idempotent for credentials: it now checks for an existing credential in the preferred vault and skips seeding if present; otherwise it creates the vault and prompts to store credentials
+- 📚 Updated README with new script path, `SetupCredentials` usage, and credential seeding behavior
+
 ## Version 2.1.0 - August 19, 2025
 
 ### 🚀 Major New Features

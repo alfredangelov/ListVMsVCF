@@ -200,7 +200,7 @@ Execute the main script to list VMs and generate Excel output:
 
 ```powershell
 # Quick credential update (uses Configuration.psd1 for server info)
-.\Quick-CredentialUpdate.ps1
+.\scripts\Quick-CredentialUpdate.ps1
 ```
 
 #### Toolkit-Utilities.ps1 Actions
@@ -215,9 +215,20 @@ Execute the main script to list VMs and generate Excel output:
 # Validate and explore VM folders
 .\scripts\Toolkit-Utilities.ps1 -Action ListFolders
 
+# Create vault if needed and (re)store credentials from Configuration.psd1
+.\scripts\Toolkit-Utilities.ps1 -Action SetupCredentials
+
 # Display help information
 .\scripts\Toolkit-Utilities.ps1 -Action Help
 ```
+
+### Initialize-Environment and Credentials
+
+The initializer is idempotent for credentials:
+
+- It determines the preferred vault (prefers existing `VCenterVault`, else uses your `preferredVault`)
+- If the configured `CredentialName` already exists in that vault, it skips seeding
+- If missing, it creates/configures the vault (when needed) and prompts you once to store credentials
 
 ## 🏗️ Architecture
 
@@ -490,7 +501,8 @@ ListVMsVCF/
 │   ├── Initialize-Environment.ps1      # Complete environment setup
 │   ├── List-VMs.ps1                   # Main VM listing script (vCenter)
 │   ├── List-VMs-esxi.ps1              # ESXi host VM listing script
-│   └── Toolkit-Utilities.ps1          # Diagnostic and utility functions
+│   ├── Toolkit-Utilities.ps1          # Diagnostic and utility functions
+│   └── Quick-CredentialUpdate.ps1     # Quick credential update utility
 ├── modules/
 │   ├── EnvironmentValidator.psm1       # Environment validation and credentials
 │   ├── vSphereConnector.psm1          # vCenter/ESXi connectivity and VM data
@@ -502,7 +514,6 @@ ListVMsVCF/
 │   └── (Generated Excel files)        # VMList_hostname_YYYYMMDD_HHMMSS.xlsx
 ├── test/
 │   └── (Test scripts and validation)  # Future test framework
-├── Quick-CredentialUpdate.ps1         # Quick credential update utility
 └── README.md                          # This documentation
 ```
 

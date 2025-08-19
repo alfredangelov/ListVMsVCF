@@ -18,7 +18,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("Status", "TestConnection", "ListFolders", "Help")]
+    [ValidateSet("Status", "TestConnection", "ListFolders", "SetupCredentials", "Help")]
     [string]$Action,
     
     [Parameter(Mandatory = $false)]
@@ -63,13 +63,14 @@ try {
             Write-Host "Status         - Show environment and module status" -ForegroundColor White
             Write-Host "TestConnection - Test connection to vCenter server" -ForegroundColor White
             Write-Host "ListFolders    - Validate configured VM folder and check for VMs" -ForegroundColor White
+            Write-Host "SetupCredentials- Create vault if needed and (re)store credentials" -ForegroundColor White
             Write-Host "Help           - Show this help message" -ForegroundColor White
             Write-Host ""
             Write-Host "Examples:" -ForegroundColor Yellow
             Write-Host "  .\scripts\Toolkit-Utilities.ps1 -Action Status" -ForegroundColor Cyan
             Write-Host "  .\scripts\Toolkit-Utilities.ps1 -Action TestConnection" -ForegroundColor Cyan
             Write-Host "  .\scripts\Toolkit-Utilities.ps1 -Action ListFolders" -ForegroundColor Cyan
-            Write-Host "  .\scripts\Toolkit-Utilities.ps1 -Action ListFolders" -ForegroundColor Cyan
+            Write-Host "  .\scripts\Toolkit-Utilities.ps1 -Action SetupCredentials" -ForegroundColor Cyan
         }
         
         "Status" {
@@ -301,6 +302,56 @@ try {
             } else {
                 Write-Host "✗ Could not connect to vCenter server!" -ForegroundColor Red
             }
+        }
+
+        "SetupCredentials" {
+            Write-Host "Setting up credentials and vault..." -ForegroundColor Blue
+            Write-Host ""
+
+            # Load configuration
+            if (-not (Test-Path -Path $ConfigPath)) {
+                throw "Configuration file not found: $ConfigPath"
+            }
+            $config = Import-PowerShellDataFile -Path $ConfigPath
+            Write-Host "Configuration loaded from: $ConfigPath" -ForegroundColor Gray
+            Write-Host "Target server: $($config.SourceServerHost)" -ForegroundColor White
+            Write-Host "Credential name: $($config.CredentialName)" -ForegroundColor White
+            Write-Host "Requested vault: $($config.preferredVault)" -ForegroundColor White
+            Write-Host ""
+
+            # Import environment validator for credential helpers
+            Import-ToolkitModule -ModuleName "EnvironmentValidator"
+
+            # Determine preferred vault and initialize
+            $preferredVault = Get-PreferredVaultName -RequestedVaultName $config.preferredVault
+            $initOk = Initialize-CredentialManagement -VaultName $preferredVault
+            if (-not $initOk) {
+                throw "Failed to initialize credential management for vault '$preferredVault'"
+            }
+
+            # If credential exists, inform user; else prompt to set
+            $exists = Test-StoredCredential -CredentialName $config.CredentialName -ServerHost $config.SourceServerHost -VaultName $preferredVault
+            if ($exists) {
+                Write-Host "✅ Credential already exists in vault '$preferredVault'" -ForegroundColor Green
+                $update = Read-Host "Do you want to update it now? (y/N)"
+                if ($update -match '^[Yy]') {
+                    if (Set-VCenterCredential -CredentialName $config.CredentialName -ServerHost $config.SourceServerHost -VaultName $preferredVault -Force) {
+                        Write-Host "✅ Credential updated" -ForegroundColor Green
+                    } else {
+                        throw "Failed to update credential"
+                    }
+                } else {
+                    Write-Host "Skipping update" -ForegroundColor Yellow
+                }
+            } else {
+                if (Set-VCenterCredential -CredentialName $config.CredentialName -ServerHost $config.SourceServerHost -VaultName $preferredVault) {
+                    Write-Host "✅ Credential stored" -ForegroundColor Green
+                } else {
+                    throw "Failed to store credential"
+                }
+            }
+
+            Write-Host "Done." -ForegroundColor Green
         }
     }
     
