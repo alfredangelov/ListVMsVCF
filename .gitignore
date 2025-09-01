@@ -1,0 +1,47 @@
+# Active configuration (contains environment-specific values)
+shared/Configuration.psd1
+
+# Project internal documentation
+docs/*
+
+# Test files and temporary directories
+Test-*.ps1
+test/*
+
+# Logs and debug files
+logs/*
+*.log
+*.txt
+debug-*
+error-*
+
+# Data export files
+export/*
+output/*
+*.csv
+*.xlsx
+*.xml
+*.json
+
+# Credential and secret files
+*.key
+*.pfx
+*.p12
+*.crt
+*.pem
+*secret*
+*password*
+
+# Ignore cruft
+Thumbs.db
+.DS_Store
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+*.ps1xml
+profile.ps1
+*.bak
+*.backup
+*~
