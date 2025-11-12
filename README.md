@@ -74,8 +74,8 @@ Install-Module Microsoft.Graph.Users.Actions -Scope CurrentUser -Force
 ### Option 1: Clone Repository (Recommended)
 
 ```powershell
-git clone https://github.com/alfredangelov/VirtToolkit.git
-cd VirtToolkit
+git clone https://github.com/alfredangelov/ListVMsVCF.git
+cd ListVMsVCF
 ```
 
 ### Option 2: Download ZIP
