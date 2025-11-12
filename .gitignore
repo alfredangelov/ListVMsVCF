@@ -1,12 +1,11 @@
 # Active configuration (contains environment-specific values)
 shared/Configuration.psd1
 
+# Old repository files
+attic/*
+
 # Project internal documentation
 docs/*
-
-# Test files and temporary directories
-Test-*.ps1
-test/*
 
 # Logs and debug files
 logs/*
