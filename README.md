@@ -74,7 +74,7 @@ Install-Module Microsoft.Graph.Users.Actions -Scope CurrentUser -Force
 ### Option 1: Clone Repository (Recommended)
 
 ```powershell
-git clone https://github.com/yourusername/VirtToolkit.git
+git clone https://github.com/alfredangelov/VirtToolkit.git
 cd VirtToolkit
 ```
 
