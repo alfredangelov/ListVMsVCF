@@ -1,10 +1,10 @@
 # Active configuration (contains environment-specific values)
-shared/Configuration.psd1
+shared/config/Configuration.psd1
 
 # Old repository files
 attic/*
 
-# Project internal documentation
+# Internal design documentation
 docs/*
 
 # Logs and debug files
@@ -15,7 +15,6 @@ debug-*
 error-*
 
 # Data export files
-export/*
 output/*
 *.csv
 *.xlsx
